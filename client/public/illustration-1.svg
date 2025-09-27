@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Contract Stack -->
+  <g transform="translate(400, 250)">
+    <!-- Bottom contract -->
+    <rect x="-150" y="-190" width="300" height="380" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="2" transform="rotate(-5, 0, 0)" />
+    
+    <!-- Middle contract -->
+    <rect x="-150" y="-190" width="300" height="380" rx="8" ry="8" fill="#ffffff" stroke="#d1d5db" stroke-width="2" transform="rotate(-2, 0, 0)" />
+    
+    <!-- Top contract -->
+    <rect x="-150" y="-190" width="300" height="380" rx="8" ry="8" fill="#ffffff" stroke="#4f46e5" stroke-width="2" />
+    
+    <!-- Contract header -->
+    <rect x="-120" y="-160" width="240" height="40" rx="4" ry="4" fill="#4f46e5" />
+    <text x="0" y="-132" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#ffffff">CONTRACT</text>
+    
+    <!-- Contract content lines -->
+    <rect x="-120" y="-100" width="240" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    <rect x="-120" y="-75" width="200" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    <rect x="-120" y="-50" width="240" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    <rect x="-120" y="-25" width="180" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    <rect x="-120" y="0" width="240" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    <rect x="-120" y="25" width="210" height="2" rx="1" ry="1" fill="#e5e7eb" />
+    
+    <!-- Signature line -->
+    <rect x="-120" y="70" width="120" height="2" rx="1" ry="1" fill="#000000" />
+    <text x="-60" y="90" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#6b7280">Signature</text>
+    
+    <!-- Checkbox area -->
+    <rect x="30" y="60" width="20" height="20" rx="4" ry="4" fill="none" stroke="#4f46e5" stroke-width="2" />
+    <path d="M35,70 L40,75 L45,65" stroke="#4f46e5" stroke-width="2" fill="none" />
+    <text x="60" y="75" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">Approved</text>
+  </g>
+</svg>

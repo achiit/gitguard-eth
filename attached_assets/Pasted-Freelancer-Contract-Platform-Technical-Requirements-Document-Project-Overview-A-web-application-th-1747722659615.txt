@@ -1,0 +1,225 @@
+Freelancer Contract Platform - Technical Requirements Document
+Project Overview
+A web application that enables freelancers to create, manage, and share professional contracts with clients. The platform includes user authentication, contract templates, digital signatures, and PDF generation.
+Development Environment
+
+Platform: Replit or similar online IDE
+Repository: GitHub for version control
+Deployment: Vercel/Netlify for frontend, Firebase hosting as an alternative
+
+Tech Stack
+Frontend
+
+Framework: React 18+ with Vite as build tool
+Language: TypeScript 5.0+
+Styling: Tailwind CSS 3.3+
+Component Library: Optional - Headless UI or Radix UI for accessible components
+State Management: React Context API + useReducer for simple state, Zustand for more complex state
+Routing: React Router v6+
+Form Handling: React Hook Form + Zod for validation
+PDF Generation: react-pdf or jsPDF
+
+Backend (Serverless)
+
+Database: Firebase Firestore
+Authentication: Firebase Authentication (Google Sign-in)
+Storage: Firebase Storage (for logos and signatures)
+Functions: Firebase Cloud Functions (for email sending and PDF processing)
+
+APIs & Services
+
+Email: Firebase Extensions - Trigger Email or EmailJS for client communication
+File Handling: Firebase Storage
+PDF Processing: Client-side with jsPDF/react-pdf
+
+Core Technical Requirements
+Authentication & User Management
+
+Implement Google Sign-in using Firebase Authentication
+Store user profile data in Firestore (users/{userId} collection)
+Implement protected routes for authenticated users
+Handle user session persistence
+
+User Registration Flow
+
+Create form for organization profile data:
+
+Organization name (required)
+Logo upload to Firebase Storage (required)
+Description field with rich text support (optional)
+Contact information fields (optional)
+
+
+Validate all form inputs with appropriate error handling
+Store profile data in Firestore
+Implement logo upload to Firebase Storage with image preview
+
+Dashboard Implementation
+
+Create dashboard layout with responsive sidebar navigation
+Implement contract listing with filter/sort capabilities
+Display contract status indicators using color-coded badges
+Add "Create New Contract" button prominently placed
+Implement contract search functionality
+
+Contract Creation System
+
+Implement multi-step form with progress indicator:
+
+Step 1: Template selection (3-4 templates)
+Step 2: Client information
+Step 3: Project details
+Step 4: Legal clauses and terms
+Step 5: Signature section
+
+
+Add form validation at each step
+Implement state persistence between steps
+Create save-as-draft functionality
+Implement contract template system with replaceable variables
+
+Contract Templates
+
+Build 3-4 professional contract templates:
+
+General Service Agreement
+Project-Based Contract
+Non-Disclosure Agreement (NDA)
+Statement of Work (SOW)
+
+
+Implement HTML/CSS templates that render well in PDF format
+Add variable placeholders for dynamic content
+Include proper spacing, typography, and formatting for professional appearance
+
+Digital Signature Feature
+
+Implement canvas-based signature pad for drawing signatures
+Add "type-to-sign" alternative option
+Store signatures as base64 encoded images
+Add date stamps for both signatures
+Implement signature verification
+
+Preview & PDF Generation
+
+Create contract preview mode with accurate formatting
+Implement client-side PDF generation using jsPDF or react-pdf
+Add download button for generated PDF
+Ensure PDF formatting matches web preview
+Add custom headers/footers in PDF with page numbers
+
+Client-side Contract Viewing
+
+Create public contract viewing route with token-based access
+Implement client signature capability
+Add contract acceptance mechanism
+Send confirmation email after signing
+Update contract status after client signature
+
+Email Notification System
+
+Implement email sending via Firebase Extensions or EmailJS
+Create email templates for:
+
+Contract ready for signature
+Contract signed notification
+Contract updates
+
+
+Add unsubscribe functionality in emails
+Track email delivery status
+
+Data Model
+typescript// User Profile
+interface UserProfile {
+  userId: string;
+  email: string;
+  organizationName: string;
+  logoUrl: string;
+  description?: string;
+  phone?: string;
+  address?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// Client
+interface Client {
+  clientId: string;
+  userId: string; // reference to freelancer
+  name: string;
+  companyName: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  createdAt: Timestamp;
+}
+
+// Contract
+interface Contract {
+  contractId: string;
+  userId: string; // reference to freelancer
+  templateType: 'service' | 'project' | 'nda' | 'sow';
+  status: 'draft' | 'sent' | 'signed' | 'completed' | 'expired';
+  clientInfo: {
+    clientId?: string; // reference to existing client if available
+    name: string;
+    companyName: string;
+    email: string;
+    phone?: string;
+    address?: string;
+  };
+  projectDetails: {
+    title: string;
+    description: string;
+    startDate: Timestamp;
+    endDate: Timestamp;
+    scope: string;
+    outOfScope?: string;
+  };
+  deliverables: Array<{
+    name: string;
+    description: string;
+    dueDate?: Timestamp;
+  }>;
+  paymentTerms: {
+    type: 'fixed' | 'hourly' | 'milestone';
+    amount: number;
+    currency: string;
+    schedule?: string;
+    deposit?: number;
+  };
+  legalClauses: Record<string, string>; // Key-value pairs of clause type and content
+  signatures: {
+    freelancer?: {
+      signature: string; // base64 image
+      date: Timestamp;
+    };
+    client?: {
+      signature: string; // base64 image
+      date: Timestamp;
+    };
+  };
+  accessToken?: string; // For client access
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  sentAt?: Timestamp;
+  signedAt?: Timestamp;
+}
+Firebase Configuration
+
+Create a new Firebase project
+Enable Google Authentication
+Set up Firestore database with proper security rules
+Configure Firebase Storage with appropriate cors settings
+Set up Firebase hosting (optional)
+
+javascript// Example Firebase configuration
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};

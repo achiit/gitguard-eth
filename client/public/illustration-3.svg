@@ -1,0 +1,44 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9F5A" />
+      <stop offset="100%" stop-color="#FFCC66" />
+    </linearGradient>
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF9F5A" />
+      <stop offset="100%" stop-color="#FF7A28" />
+    </linearGradient>
+    <linearGradient id="gradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFCC66" />
+      <stop offset="100%" stop-color="#FFAA33" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Invoice Platform -->
+  <polygon points="200,200 320,140 200,80 80,140" fill="url(#gradient3)" />
+  
+  <!-- Invoice Paper -->
+  <polygon points="180,90 260,130 260,190 180,150" fill="white" fill-opacity="0.9" />
+  
+  <!-- Invoice Details -->
+  <line x1="200" y1="110" x2="240" y2="130" stroke="#FF9F5A" stroke-width="2" />
+  <line x1="200" y1="120" x2="230" y2="135" stroke="#FF9F5A" stroke-width="2" />
+  <line x1="200" y1="130" x2="240" y2="150" stroke="#FF9F5A" stroke-width="2" />
+  <line x1="200" y1="140" x2="220" y2="150" stroke="#FF9F5A" stroke-width="2" />
+  
+  <!-- Dollar Sign -->
+  <circle cx="220" cy="170" r="15" fill="url(#gradient1)" />
+  <path d="M220 162 L220 178 M217 165 L223 165 M217 175 L223 175" stroke="white" stroke-width="2" />
+  
+  <!-- Small Cubes -->
+  <polygon points="120,120 140,110 140,90 120,100" fill="#FFCC66" />
+  <polygon points="120,100 140,90 120,80 100,90" fill="#FF9F5A" />
+  <polygon points="120,80 140,90 120,100 100,90" fill="#FFAA33" />
+  
+  <polygon points="280,120 300,110 300,90 280,100" fill="#FFCC66" />
+  <polygon points="280,100 300,90 280,80 260,90" fill="#FF9F5A" />
+  <polygon points="280,80 300,90 280,100 260,90" fill="#FFAA33" />
+  
+  <!-- Text Label -->
+  <text x="200" y="230" font-family="Arial" font-size="14" fill="white" text-anchor="middle">Automated Invoicing</text>
+</svg> 

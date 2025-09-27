@@ -18,12 +18,15 @@ import {
   Client, 
   Contract, 
   ContractStatus,
+  Invoice,
+  AuditEntry,
 } from '@/types';
 
 // Collections
 const USERS_COLLECTION = 'users';
 const CLIENTS_COLLECTION = 'clients';
 const CONTRACTS_COLLECTION = 'contracts';
+const INVOICES_COLLECTION = 'invoices';
 
 // User operations
 export const createUserProfile = async (userData: Partial<User>) => {

@@ -6,12 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Calendar, DollarSign, Package } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Calendar, DollarSign, Package, Wallet, Shield } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { ContractFormData, PaymentType } from "@/types";
+import { PYUSD_CONFIG } from "@/lib/web3-escrow";
+import { usePrivy } from '@privy-io/react-auth';
 
 export default function ProjectDetailsStep() {
   const form = useFormContext<ContractFormData>();
+  const { user: privyUser } = usePrivy();
   // Add a new deliverable
   const addDeliverable = () => {
     const deliverables = form.getValues("deliverables") || [];

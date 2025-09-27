@@ -5,15 +5,19 @@ import ContractsTable from "@/components/dashboard/contracts-table";
 import RecentActivity from "@/components/dashboard/recent-activity";
 import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/ui/loader";
-import { FileText, CheckSquare, Clock } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { FileText, CheckSquare, Clock, Wallet, User, Sparkles } from "lucide-react";
 import type { Contract, ContractStatus, ActivityItem } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
+import { usePrivyAuth } from "@/hooks/use-privy-auth";
 import { getContractsByUserId } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
 export default function Dashboard() {
 	const { user } = useAuth();
+	const { user: privyUser, authenticated: privyAuthenticated, getPrimaryWalletAddress } = usePrivyAuth();
 	const { toast } = useToast();
 	const [stats, setStats] = useState({
 		totalContracts: 0,
@@ -27,18 +31,25 @@ export default function Dashboard() {
 	// Fetch contracts from Firestore
 	useEffect(() => {
 		const fetchContracts = async () => {
-			if (!user?.uid) return;
+			if (!user?.uid) {
+				console.log('No user ID available for fetching contracts');
+				setIsLoading(false);
+				return;
+			}
 
+			console.log('Fetching contracts for user:', user.uid);
 			setIsLoading(true);
 			try {
 				const response = await getContractsByUserId(user.uid);
 				if (response.error) {
+					console.error('Error fetching contracts:', response.error);
 					toast({
 						title: "Error",
 						description: "Failed to load contracts data. Please try again.",
 						variant: "destructive",
 					});
 				} else {
+					console.log('Contracts fetched successfully:', response.data?.length || 0);
 					setContracts(response.data || []);
 				}
 			} catch (error) {
@@ -133,6 +144,64 @@ export default function Dashboard() {
 			title="Dashboard"
 			description="Overview of your contract activity"
 		>
+			{/* Web3 User Info Card */}
+			{privyAuthenticated && privyUser && (
+				<Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Sparkles className="h-5 w-5 text-blue-600" />
+							Web3 Profile Active
+						</CardTitle>
+						<CardDescription>
+							Your decentralized identity and wallet information
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div className="space-y-2">
+								<div className="flex items-center gap-2">
+									<User className="h-4 w-4 text-gray-500" />
+									<span className="font-medium">{privyUser.displayName}</span>
+								</div>
+								{privyUser.email && (
+									<div className="text-sm text-gray-600">
+										{privyUser.email}
+									</div>
+								)}
+								<div className="flex gap-2 flex-wrap">
+									{privyUser.linkedAccounts.email && (
+										<Badge variant="secondary">Email</Badge>
+									)}
+									{privyUser.linkedAccounts.google && (
+										<Badge variant="secondary">Google</Badge>
+									)}
+									{privyUser.linkedAccounts.wallet && (
+										<Badge className="bg-purple-100 text-purple-800">Wallet</Badge>
+									)}
+								</div>
+							</div>
+							
+							{privyUser.hasWallet && (
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<Wallet className="h-4 w-4 text-purple-600" />
+										<span className="font-medium">Primary Wallet</span>
+									</div>
+									<div className="text-sm font-mono bg-white p-2 rounded border">
+										{getPrimaryWalletAddress()?.slice(0, 6)}...{getPrimaryWalletAddress()?.slice(-4)}
+									</div>
+									{privyUser.hasEmbeddedWallet && (
+										<Badge className="bg-green-100 text-green-800">
+											Embedded Wallet
+										</Badge>
+									)}
+								</div>
+							)}
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 				<StatsCard

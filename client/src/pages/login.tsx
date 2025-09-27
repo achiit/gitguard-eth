@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { signInWithGoogle } from "@/lib/firebase";
+import { usePrivy } from '@privy-io/react-auth';
 import { useToast } from "@/hooks/use-toast";
-import { useRedirectIfAuthenticated } from "@/hooks/use-auth";
-import { Loader2, ChevronLeft, ChevronRight, Star, Check } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Star, Check, Wallet, Sparkles } from "lucide-react";
 
 // Starburst Background Component
 const StarburstBackground = () => (
@@ -31,44 +30,42 @@ const StarburstBackground = () => (
 export default function Login() {
 	const [, navigate] = useLocation();
 	const { toast } = useToast();
-	const [isLoading, setIsLoading] = useState(false);
-	const { isLoading: isAuthLoading } = useRedirectIfAuthenticated();
+	const [isWeb3Loading, setIsWeb3Loading] = useState(false);
+	const hasRedirected = useRef(false);
+	
+	// Use Privy directly - no custom hooks to avoid conflicts
+	const { login, ready, authenticated, user } = usePrivy();
 
-	const handleGoogleSignIn = async () => {
-		setIsLoading(true);
-		try {
-			const { user, error } = await signInWithGoogle();
-			if (error) {
-				toast({
-					variant: "destructive",
-					title: "Authentication error",
-					description:
-						error.message || "An error occurred during authentication",
-				});
-				return;
-			}
-			if (user) {
-				toast({
-					title: "Successfully logged in",
-					description: "Welcome to Habu!",
-				});
-				// navigate("/dashboard", { replace: true });
-			}
-		} catch (error) {
-			toast({
-				variant: "destructive",
-				title: "Authentication error",
-				description: "An unexpected error occurred. Please try again.",
-			});
-		} finally {
-			setIsLoading(false);
+	// Redirect when authenticated - let AuthWrapper handle this
+	useEffect(() => {
+		if (authenticated && user && ready && !hasRedirected.current) {
+			hasRedirected.current = true;
+			console.log('✅ Privy authenticated, letting AuthWrapper handle redirect');
+			// Don't navigate here - let AuthWrapper handle the routing logic
 		}
+	}, [authenticated, user, ready]);
+
+	const handleWeb3SignIn = () => {
+		if (!ready) {
+			console.log("⏳ Please wait - Privy is initializing...");
+			return;
+		}
+
+		setIsWeb3Loading(true);
+		console.log('🔄 Starting Privy login...');
+		
+		// Call Privy login - this will open the modal
+		login();
 	};
 
-	if (isAuthLoading) {
+	// Show loading if Privy is not ready
+	if (!ready) {
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-black">
-				<Loader2 className="h-12 w-12 animate-spin text-[#FFCC66]" />
+				<div className="text-center">
+					<Loader2 className="h-12 w-12 animate-spin text-[#FFCC66] mx-auto mb-4" />
+					<p className="text-white">Initializing Web3 authentication...</p>
+				</div>
 			</div>
 		);
 	}
@@ -141,26 +138,40 @@ export default function Login() {
 							</div>
 						</div>
 
-						{/* Google Sign In Button - Prominent and Styled */}
+
+
+						{/* Web3 Sign In Button - Clean Implementation */}
 						<button
 							type="button"
-							onClick={handleGoogleSignIn}
-							disabled={isLoading}
-							className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3.5 rounded-lg shadow-md transition duration-300 ease-in-out flex items-center justify-center text-lg mb-8 group relative overflow-hidden"
+							onClick={handleWeb3SignIn}
+							disabled={isWeb3Loading || authenticated}
+							className="w-full bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] hover:from-[#5855eb] hover:to-[#7c3aed] text-white font-medium py-3.5 rounded-lg shadow-lg transition duration-300 ease-in-out flex items-center justify-center text-lg mb-6 group relative overflow-hidden disabled:opacity-50"
 						>
-							<span className="absolute inset-0 w-full h-full bg-gradient-to-r from-[#FF9F5A] to-[#FFCC66] opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-							{isLoading ? (
-								<Loader2 className="mr-2 h-5 w-5 animate-spin text-gray-700" />
+							<span className="absolute inset-0 w-full h-full bg-gradient-to-r from-[#4f46e5] to-[#7c2d12] opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+							{isWeb3Loading ? (
+								<Loader2 className="mr-2 h-5 w-5 animate-spin text-white" />
 							) : (
-								<img
-									src="/google-logo.png"
-									alt="Google Logo"
-									width={24}
-									height={24}
-								/>
+								<div className="flex items-center">
+									<Wallet className="mr-2 h-5 w-5" />
+									<Sparkles className="mr-2 h-4 w-4 animate-pulse" />
+								</div>
 							)}
-							<span className="ml-2">Sign in with Google</span>
+							<span className="relative z-10">
+								{authenticated ? "Authenticated" : isWeb3Loading ? "Connecting..." : "Sign in with Web3"}
+							</span>
 						</button>
+
+						{/* Web3 Features Preview */}
+						<div className="mb-6 p-4 bg-gradient-to-r from-[#6366f1]/10 to-[#8b5cf6]/10 rounded-lg border border-[#6366f1]/20">
+							<div className="flex items-center mb-2">
+								<Sparkles className="w-4 h-4 text-[#6366f1] mr-2" />
+								<span className="text-sm font-medium text-white">Web3 Features</span>
+								<span className="ml-2 px-2 py-1 bg-green-500 text-white text-xs rounded-full">LIVE</span>
+							</div>
+							<p className="text-xs text-gray-300">
+								🔐 Multiple login options • 💰 Built-in crypto wallet • ⚡ Blockchain contracts
+							</p>
+						</div>
 
 						<p className="text-center text-sm text-gray-400">
 							<button

@@ -13,16 +13,16 @@ const imagekit = new ImageKit({
 export const uploadLogo = async (userId: string, file: File) => {
   try {
     console.log(`Uploading logo for user ${userId}...`);
+    console.log('File details:', { name: file.name, size: file.size, type: file.type });
     
     // Convert file to base64
     const base64 = await fileToBase64(file);
     
-    // Upload to ImageKit
+    // Simple upload without folder parameter
     const result = await imagekit.upload({
       file: base64,
-      fileName: `${file.name.replace(/\s+/g, '_')}`,
-      folder: `/logos/${userId}`,
-      useUniqueFileName: true,
+      fileName: `logo-${userId}-${Date.now()}.${file.name.split('.').pop()}`,
+      useUniqueFileName: false,
     });
     
     console.log('Logo upload successful:', result.url);
@@ -47,12 +47,11 @@ export const uploadSignature = async (userId: string, signature: string) => {
       signatureData = signature.split(',')[1];
     }
     
-    // Upload to ImageKit
+    // Simple upload without folder parameter
     const result = await imagekit.upload({
       file: signatureData,
-      fileName: `signature-${Date.now()}.png`,
-      folder: `/signatures/${userId}`,
-      useUniqueFileName: true,
+      fileName: `signature-${userId}-${Date.now()}.png`,
+      useUniqueFileName: false,
     });
     
     console.log('Signature upload successful:', result.url);

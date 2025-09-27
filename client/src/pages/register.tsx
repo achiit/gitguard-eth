@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { createUserProfile } from "@/lib/firestore";
+import { updateUserProfile } from "@/lib/firestore";
 import { uploadLogo } from "@/lib/imagekit";
 import { Loader2, Upload, ChevronRight, FileCheck, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -131,10 +131,8 @@ export default function Register() {
         throw new Error(uploadError?.message || "Failed to upload logo");
       }
 
-      // Create user profile in Firestore
+      // Update user profile in Firestore (user already exists from Privy sync)
       const userData = {
-        userId: user.uid,
-        email: user.email,
         organizationName: data.organizationName,
         logoUrl,
         description: data.description || null,
@@ -142,10 +140,10 @@ export default function Register() {
         address: data.address || null,
       };
 
-      const { success, error } = await createUserProfile(userData);
+      const { success, error } = await updateUserProfile(user.uid, userData);
       
       if (!success) {
-        throw new Error(error as string || "Failed to create user profile");
+        throw new Error(error as string || "Failed to update user profile");
       }
 
       // Update auth context

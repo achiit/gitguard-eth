@@ -88,6 +88,30 @@ export default function Sidebar({ sidebarOpen }: SidebarProps) {
             Contracts
           </Link>
           <Link 
+            to="/invoices" 
+            className={
+              `flex items-center w-full px-4 py-2 text-sm font-medium rounded-md
+              ${location === "/invoices" 
+                ? "bg-primary-50 text-primary-600" 
+                : "text-gray-700 hover:bg-gray-100"}`
+            }
+          >
+            <i className="ri-bill-line text-xl mr-3" />
+            Invoices
+          </Link>
+          <Link 
+            to="/faucet" 
+            className={
+              `flex items-center w-full px-4 py-2 text-sm font-medium rounded-md
+              ${location === "/faucet" 
+                ? "bg-primary-50 text-primary-600" 
+                : "text-gray-700 hover:bg-gray-100"}`
+            }
+          >
+            <i className="ri-coins-line text-xl mr-3" />
+            Token Faucet
+          </Link>
+          <Link 
             to="/clients" 
             className={
               `flex items-center w-full px-4 py-2 text-sm font-medium rounded-md

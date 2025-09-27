@@ -8,16 +8,19 @@ import ContractStepperForm from "@/components/contract/contract-stepper-form";
 import ContractPreview from "@/components/contract/contract-preview";
 import { ContractFormData, ContractStatus, User } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
+import { usePrivy } from '@privy-io/react-auth';
 // Using the real ImageKit implementation
 import { uploadSignature } from "@/lib/imagekit";
 import { createContract } from "@/lib/firestore";
 import { getUserProfile } from "@/lib/firestore";
+import { Web3EscrowService, PYUSD_CONFIG } from "@/lib/web3-escrow";
 
 export default function CreateContract() {
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { user: privyUser } = usePrivy();
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   
@@ -55,7 +58,57 @@ export default function CreateContract() {
         throw new Error(response.error as string || "Failed to create contract");
       }
       
-      return response.data;
+      const contract = response.data;
+      
+      // If contract has payment terms and freelancer signature (signed), create invoice
+      if (contract.signatures?.freelancer && 
+          contract.paymentTerms && 
+          privyUser?.wallets?.[0]?.address) {
+        
+        console.log('Creating invoice for signed contract...');
+        
+        // Get freelancer's primary wallet address
+        const freelancerWallet = privyUser.wallets[0].address;
+        
+        // Add Web3 payment configuration to contract
+        const web3Config = Web3EscrowService.getPaymentConfig(
+          contract.paymentTerms.currency, 
+          freelancerWallet
+        );
+        
+        // Update contract with Web3 payment terms
+        const updatedContract = {
+          ...contract,
+          paymentTerms: {
+            ...contract.paymentTerms,
+            tokenAddress: web3Config.tokenAddress,
+            decimals: web3Config.decimals,
+            chainId: web3Config.chainId,
+            payeeWallet: freelancerWallet
+          }
+        };
+        
+        try {
+          // Create invoice
+          const invoiceId = await Web3EscrowService.createInvoiceFromContract(updatedContract);
+          console.log('Invoice created successfully:', invoiceId);
+          
+          toast({
+            title: "Contract and Invoice Created",
+            description: "Contract created with automatic Web3 payment setup",
+          });
+        } catch (error) {
+          console.error('Failed to create invoice:', error);
+          // Don't fail the contract creation, just log the error
+          toast({
+            title: "Contract created",
+            description: "Contract created successfully, but invoice creation failed. You can create it manually later.",
+            variant: "default",
+          });
+        }
+      }
+      
+      return contract;
     },
     onSuccess: () => {      
       toast({

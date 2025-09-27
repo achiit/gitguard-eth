@@ -14,6 +14,7 @@ import { AlertTriangle, CheckCircle, Clock, Download, Loader2 } from "lucide-rea
 import { getPublicContract, getUserProfile, updateContract } from "@/lib/firestore";
 import { uploadSignature } from "@/lib/imagekit";
 import { useOptionalAuth } from "@/hooks/use-auth";
+import { Web3EscrowService } from "@/lib/web3-escrow";
 
 export default function ClientView() {
   const { accessToken } = useParams();
@@ -96,13 +97,56 @@ export default function ClientView() {
       }
       
       console.log("Contract signed successfully");
+      
+      // Create invoice after successful contract signing
+      if (contract?.paymentTerms && contract.userId) {
+        try {
+          console.log("Creating invoice for signed contract...");
+          
+          // Get freelancer profile to get wallet address
+          const freelancerProfile = await getUserProfile(contract.userId);
+          
+          // Try to get wallet address from profile, or use a fallback
+          const walletAddress = freelancerProfile.data?.walletAddress;
+          
+          if (walletAddress) {
+            // Add Web3 payment configuration to contract
+            const web3Config = Web3EscrowService.getPaymentConfig(
+              contract.paymentTerms.currency, 
+              walletAddress
+            );
+            
+            // Update contract with Web3 payment terms
+            const updatedContract = {
+              ...contract,
+              paymentTerms: {
+                ...contract.paymentTerms,
+                tokenAddress: web3Config.tokenAddress,
+                decimals: web3Config.decimals,
+                chainId: web3Config.chainId,
+                payeeWallet: walletAddress
+              }
+            };
+            
+            // Create invoice
+            const invoiceId = await Web3EscrowService.createInvoiceFromContract(updatedContract);
+            console.log('Invoice created successfully:', invoiceId);
+          } else {
+            console.warn('Freelancer wallet address not found, skipping invoice creation');
+          }
+        } catch (error) {
+          console.error('Failed to create invoice after contract signing:', error);
+          // Don't fail the contract signing, just log the error
+        }
+      }
+      
       return { success: true };
     },
     onSuccess: () => {
       setSigningComplete(true);
       toast({
         title: "Contract signed successfully",
-        description: "Thank you for signing the contract!",
+        description: "Thank you for signing the contract! An invoice has been created for payment.",
       });
     },
     onError: (error) => {

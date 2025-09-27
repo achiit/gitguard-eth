@@ -1,23 +1,23 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
   browserLocalPersistence,
   setPersistence
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  query, 
-  where, 
-  getDocs 
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
+  getDocs
 } from "firebase/firestore";
 
 // Firebase configuration
@@ -42,10 +42,10 @@ setPersistence(auth, browserLocalPersistence);
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
-    
+
     // Check if this is the first sign-in for this user
     const userDoc = await getDoc(doc(firestore, 'users', result.user.uid));
-    
+
     // If user doesn't exist in Firestore yet, create profile
     if (!userDoc.exists()) {
       await setDoc(doc(firestore, 'users', result.user.uid), {
@@ -59,7 +59,7 @@ export const signInWithGoogle = async () => {
         updatedAt: new Date()
       });
     }
-    
+
     return { user: result.user, error: null };
   } catch (error) {
     console.error("Google sign-in error:", error);
@@ -76,10 +76,10 @@ export const logOut = async () => {
   }
 };
 
-export { 
-  auth, 
-  firestore, 
-  onAuthStateChanged 
+export {
+  auth,
+  firestore,
+  onAuthStateChanged
 };
 
 export type { FirebaseUser };

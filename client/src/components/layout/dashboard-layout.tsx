@@ -19,16 +19,18 @@ export default function DashboardLayout({
   description 
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { isLoading } = useRequireAuth();
+  // Temporarily disable Firebase auth requirement to prevent conflicts with Privy
+  // const { isLoading } = useRequireAuth();
   const { user } = useAuth();
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Temporarily disable Firebase auth check
+  // if (isLoading || !user) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center">
+  //       <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  //     </div>
+  //   );
+  // }
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">

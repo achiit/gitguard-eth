@@ -5,31 +5,53 @@ import { logOut } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import type { AuthUser } from "@/types";
 import { useLocation } from "wouter";
+import { usePrivyAuth } from "@/hooks/use-privy-auth";
 
 interface HeaderProps {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  user: AuthUser;
+  user: AuthUser | null;
 }
 
 export default function Header({ sidebarOpen, setSidebarOpen, user }: HeaderProps) {
+  const { user: privyUser, logout: privyLogout } = usePrivyAuth();
+  
+  // Use Privy user if Firebase user is not available
+  const displayUser = user || (privyUser ? {
+    uid: privyUser.id,
+    email: privyUser.email || '',
+    displayName: privyUser.displayName || 'Anonymous User',
+    photoURL: privyUser.photoURL,
+    hasProfile: true
+  } : null);
   const { toast } = useToast();
   const [, navigate] = useLocation();
   
   const handleLogout = async () => {
-    const { error } = await logOut();
-    
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error signing out",
-        description: error.message
-      });
-    } else {
+    try {
+      // If we have a Privy user, logout from Privy
+      if (privyUser) {
+        await privyLogout();
+      }
+      
+      // Also logout from Firebase if user exists
+      if (user) {
+        const { error } = await logOut();
+        if (error) {
+          throw error;
+        }
+      }
+      
       toast({
         title: "Signed out successfully",
       });
       navigate("/login");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error signing out",
+        description: error.message || "Failed to sign out"
+      });
     }
   };
   
@@ -59,15 +81,15 @@ export default function Header({ sidebarOpen, setSidebarOpen, user }: HeaderProp
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative flex items-center space-x-2 h-8 w-8 rounded-full">
-                {user.photoURL ? (
+                {displayUser?.photoURL ? (
                   <img 
-                    src={user.photoURL} 
-                    alt={user.displayName || "User"} 
+                    src={displayUser.photoURL} 
+                    alt={displayUser.displayName || "User"} 
                     className="h-8 w-8 rounded-full object-cover"
                   />
                 ) : (
                   <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700">
-                    {user.displayName?.charAt(0) || user.email.charAt(0)}
+                    {displayUser?.displayName?.charAt(0) || displayUser?.email?.charAt(0) || 'U'}
                   </div>
                 )}
               </Button>
@@ -75,11 +97,11 @@ export default function Header({ sidebarOpen, setSidebarOpen, user }: HeaderProp
             <DropdownMenuContent align="end" className="w-56">
               <div className="flex items-center justify-start gap-2 p-2">
                 <div className="flex flex-col space-y-1 leading-none">
-                  {user.displayName && (
-                    <p className="font-medium">{user.displayName}</p>
+                  {displayUser?.displayName && (
+                    <p className="font-medium">{displayUser.displayName}</p>
                   )}
                   <p className="w-[200px] truncate text-sm text-muted-foreground">
-                    {user.email}
+                    {displayUser?.email || 'No email'}
                   </p>
                 </div>
               </div>

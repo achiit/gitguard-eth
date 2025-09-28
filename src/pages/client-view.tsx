@@ -12,7 +12,7 @@ import { Contract, ContractStatus, User } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, Clock, Download, Loader2, Wallet } from "lucide-react";
 import { getPublicContract, getUserProfile, updateContract } from "@/lib/firestore";
-import { uploadSignature } from "@/lib/imagekit";
+import { uploadSignature } from "@/lib/mock-imagekit";
 import { useOptionalAuth } from "@/hooks/use-auth";
 import { Web3EscrowService } from "@/lib/web3-escrow";
 import { PrivyFirebaseSync } from "@/lib/privy-firebase-sync";

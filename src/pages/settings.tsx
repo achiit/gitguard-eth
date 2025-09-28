@@ -26,7 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { getUserProfile, updateUserProfile } from "@/lib/firestore";
-import { uploadLogo } from "@/lib/imagekit";
+import { uploadLogo } from "@/lib/mock-imagekit";
 import { logOut } from "@/lib/firebase";
 import { useLocation } from "wouter";
 

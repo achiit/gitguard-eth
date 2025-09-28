@@ -9,8 +9,8 @@ import ContractPreview from "@/components/contract/contract-preview";
 import { ContractFormData, ContractStatus, User } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
 import { usePrivy } from '@privy-io/react-auth';
-// Using the real ImageKit implementation
-import { uploadSignature } from "@/lib/imagekit";
+// Using the mock ImageKit implementation for frontend
+import { uploadSignature } from "@/lib/mock-imagekit";
 import { createContract } from "@/lib/firestore";
 import { getUserProfile } from "@/lib/firestore";
 import { Web3EscrowService, PYUSD_CONFIG } from "@/lib/web3-escrow";

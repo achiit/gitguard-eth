@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useRequireAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { updateUserProfile } from "@/lib/firestore";
-import { uploadLogo } from "@/lib/imagekit";
+import { uploadLogo } from "@/lib/mock-imagekit";
 import { Loader2, Upload, ChevronRight, FileCheck, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

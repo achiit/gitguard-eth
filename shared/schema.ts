@@ -143,3 +143,89 @@ export type Signatures = {
   freelancer?: Signature;
   client?: Signature;
 };
+// Firebase/Firestore specific types for Web3 integration
+export interface Milestone {
+  name: string;
+  description: string;
+  amount: number;
+  dueDate?: string;
+}
+
+export interface OnchainData {
+  chainId: number;
+  escrow: string;
+  idHex: string;
+  token: string;
+  autoReleaseAt: number;
+}
+
+export interface InvoiceOnchainData {
+  chainId: number;
+  escrow: string;
+  idHex: string;
+  token: string;
+  amount: string;
+  state: 'created' | 'funded' | 'paid';
+  fundTx?: string;
+  releaseTx?: string;
+  payer?: string;
+  payee: string;
+}
+
+export interface AuditEntry {
+  action: string;
+  timestamp: string;
+  details?: any;
+}
+
+export interface InvoiceItem {
+  name: string;
+  description: string;
+  amount: number;
+  status: 'pending' | 'funded' | 'paid';
+}
+
+export interface FirebaseInvoice {
+  invoiceId: string;
+  contractId: string;
+  userId: string;
+  clientId: string;
+  currency: string;
+  amount: number;
+  status: 'sent' | 'funded' | 'paid';
+  payLinkToken: string;
+  onchain: InvoiceOnchainData;
+  items?: InvoiceItem[];
+  audit: AuditEntry[];
+  createdAt: string;
+  updatedAt: string;
+  sentAt?: string;
+  fundedAt?: string;
+  paidAt?: string;
+}
+
+export interface FirebaseContract {
+  contractId: string;
+  userId: string;
+  templateType: string;
+  status: string;
+  clientInfo: ClientInfo;
+  projectDetails: ProjectDetails;
+  deliverables: Deliverable[];
+  paymentTerms: PaymentTerms & {
+    tokenAddress?: string;
+    decimals?: number;
+    chainId?: number;
+    payeeWallet?: string;
+    milestones?: Milestone[];
+  };
+  legalClauses: any;
+  signatures?: Signatures;
+  accessToken?: string;
+  onchain?: OnchainData;
+  audit?: AuditEntry[];
+  createdAt: string;
+  updatedAt: string;
+  sentAt?: string;
+  signedAt?: string;
+}

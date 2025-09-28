@@ -79,19 +79,35 @@ export async function releaseInvoice({
 
     // Check invoice state
     if (state === 2) {
-      // Invoice is already released - this is success!
-      throw new Error('Payment already completed! The invoice has been successfully released and the payment is complete.')
+      // CRITICAL: Contract shows Released - this could be auto-release bug
+      console.warn('⚠️ CONTRACT AUTO-RELEASE DETECTED: Invoice shows Released state')
+      console.warn('This may be due to autoReleaseAt timer or a contract bug')
+      console.warn('Attempting manual release to ensure funds are properly transferred...')
+      
+      // Continue with manual release to ensure proper fund transfer
+      console.log('🔧 Performing manual release to guarantee fund transfer...')
     } else if (state === 0) {
       throw new Error('Invoice must be funded before it can be released.')
-    } else if (state !== 1) {
+    } else if (state !== 1 && state !== 2) {
       const stateNames = ['Created', 'Funded', 'Released']
-      throw new Error(`Invoice is in ${stateNames[state]} state. Only funded invoices can be released.`)
+      throw new Error(`Invoice is in ${stateNames[state]} state. Cannot process release.`)
     }
 
-    // Check if the current user is the payee (only payee can release)
-    if (payee.toLowerCase() !== userAddressHex.toLowerCase()) {
-      throw new Error(`Only the payee (${payee}) can release this invoice. Current user: ${userAddress}`)
+    // Check if the current user is authorized (payer or payee can release)
+    const isPayer = payer.toLowerCase() === userAddressHex.toLowerCase()
+    const isPayee = payee.toLowerCase() === userAddressHex.toLowerCase()
+    
+    if (!isPayer && !isPayee) {
+      throw new Error(`Only the payer (${payer}) or payee (${payee}) can release this invoice. Current user: ${userAddress}`)
     }
+    
+    console.log('✅ User authorization check passed:', {
+      userAddress,
+      isPayer,
+      isPayee,
+      payer,
+      payee
+    })
 
     console.log('Invoice validation passed. Proceeding with release...')
 
@@ -147,6 +163,10 @@ export async function releaseInvoice({
     } else if (error.message?.includes('Internal JSON-RPC error')) {
       throw new Error('RPC error: Check your network connection and try again. The invoice may not be in the correct state.')
     } else if (error.message?.includes('execution reverted')) {
+      // Check if this is the "already completed" case
+      if (error.message?.includes('already') || error.message?.includes('completed')) {
+        throw new Error('Payment already completed')
+      }
       throw new Error('Release failed. You may not be authorized to release this invoice, or it may not be funded yet.')
     } else if (error.code === 4001) {
       throw new Error('Transaction rejected by user')

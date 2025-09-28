@@ -9,6 +9,7 @@ import { fundInvoice } from '../actions/fundInvoice'
 import { releaseInvoice } from '../actions/releaseInvoice'
 import { fetchInvoiceState } from '../actions/fetchInvoiceState'
 import { faucetTokens } from '../actions/faucetTokens'
+import { directTransfer } from '../actions/directTransfer'
 import { FirebaseInvoice } from '../../../shared/schema'
 import { toTokenAmountUSD } from '../lib/paystream'
 import { useToast } from '../hooks/use-toast'
@@ -57,22 +58,86 @@ export default function PaymentView() {
     if (!invoice?.onchain?.idHex) return
     
     try {
+      console.log('🔍 Loading onchain status for invoice:', {
+        invoiceId: invoice.invoiceId,
+        idHex: invoice.onchain.idHex,
+        databaseState: invoice.onchain.state,
+        databaseStatus: invoice.status
+      })
+      
       const status = await getInvoiceStatus(invoice.onchain.idHex as `0x${string}`, currentAccount)
+      
+      console.log('📊 Onchain status result:', {
+        onchainState: status.state,
+        onchainStateName: status.stateName,
+        databaseState: invoice.onchain.state,
+        payer: status.payer,
+        payee: status.payee,
+        total: status.total.toString(),
+        funded: status.funded.toString(),
+        isComplete: status.isComplete,
+        canFund: status.canFund,
+        canRelease: status.canRelease,
+        currentUser: currentAccount,
+        isUserPayee: currentAccount && status.payee.toLowerCase() === currentAccount.toLowerCase()
+      })
+      
+      // CRITICAL: Check if the state is actually 2 (Released) when it should be 1 (Funded)
+      if (status.state === 2 && invoice.status === 'funded') {
+        console.error('🚨 CRITICAL ISSUE: Blockchain shows Released but database shows Funded!')
+        console.error('This means the payment was auto-released or someone released it without updating the database')
+      }
+      
       setOnchainStatus(status)
       
-      // Update database if on-chain state is different
+      // Check for state mismatch
+      if (status.state.toString() !== invoice.onchain.state) {
+        console.warn('⚠️ STATE MISMATCH DETECTED:', {
+          onchainState: status.state,
+          databaseState: invoice.onchain.state,
+          message: 'Database and blockchain states are different!'
+        })
+      }
+      
+      // CRITICAL: Don't auto-update to paid when contract shows Released
+      // This prevents the auto-release bug from marking payments as complete
       if (status.isComplete && invoice.status !== 'paid') {
-        await InvoiceService.updateInvoiceStatus(invoice.invoiceId, 'paid', {
+        console.error('🚨 AUTO-RELEASE DETECTED: Contract shows Released but database shows not paid!')
+        console.error('This could be due to autoReleaseAt timer or contract bug')
+        console.error('NOT auto-updating to paid - payee must manually release to ensure fund transfer')
+        
+        // Don't auto-update - require manual release by payee
+        console.log('⚠️ Requiring manual release by payee to ensure proper fund transfer')
+      } else if (status.state === 1 && invoice.status !== 'funded') {
+        // Update to funded if blockchain shows funded but database doesn't
+        console.log('🔄 Updating database to reflect funded status')
+        await InvoiceService.updateInvoiceStatus(invoice.invoiceId, 'funded', {
           onchain: {
             ...invoice.onchain,
-            state: 'paid'
+            state: 'funded'
           }
         })
-        // Reload invoice to get updated data
         await loadInvoice()
       }
     } catch (error) {
-      console.error('Error loading on-chain status:', error)
+      console.error('❌ Error loading on-chain status:', error)
+      
+      // If invoice doesn't exist on-chain, that's okay - it will be created during funding
+      if (error instanceof Error && error.message.includes('does not exist on blockchain')) {
+        console.log('ℹ️ Invoice does not exist on blockchain yet - will be created during funding')
+        setOnchainStatus({
+          state: 0,
+          stateName: 'Created',
+          payer: '0x0000000000000000000000000000000000000000',
+          payee: invoice?.onchain?.payee || '0x0000000000000000000000000000000000000000',
+          total: BigInt((invoice?.amount || 0) * 1_000_000),
+          funded: BigInt(0),
+          isComplete: false,
+          canFund: true,
+          canRelease: false,
+          message: 'Invoice ready to be funded (will be created on-chain during funding)'
+        })
+      }
     }
   }
 
@@ -163,6 +228,18 @@ export default function PaymentView() {
   const handleRelease = async () => {
     if (!invoice || !walletConnected) return
 
+    console.log('🚀 Starting manual release process:', {
+      invoiceId: invoice.invoiceId,
+      currentUser: currentAccount,
+      payee: invoice.onchain.payee,
+      isUserPayee: currentAccount?.toLowerCase() === invoice.onchain.payee?.toLowerCase(),
+      contractState: onchainStatus?.state,
+      contractStateName: onchainStatus?.stateName,
+      databaseStatus: invoice.status,
+      amount: invoice.amount,
+      isAutoReleaseCase: onchainStatus?.state === 2 && invoice.status !== 'paid'
+    })
+
     setProcessing(true)
     try {
       const txHash = await releaseInvoice({
@@ -170,18 +247,20 @@ export default function PaymentView() {
         storedIdHex: invoice.onchain.idHex
       })
 
+      console.log('✅ Release transaction successful:', txHash)
+
       // Update Firestore
       await InvoiceService.updateInvoiceStatus(invoice.invoiceId, 'paid', {
         onchain: {
           ...invoice.onchain,
-          state: 'paid',
+          state: 'released',
           releaseTx: txHash
         }
       })
 
       toast({
         title: 'Payment Released',
-        description: 'Payment has been released to the freelancer'
+        description: 'Payment has been successfully released and transferred to your wallet'
       })
 
       // Reload invoice data and on-chain status
@@ -218,6 +297,56 @@ export default function PaymentView() {
     }
   }
 
+  const handleDirectTransfer = async () => {
+    if (!invoice || !walletConnected || !invoice.onchain.payee) return
+
+    console.log('🚀 Starting direct transfer (escrow bypass):', {
+      invoiceId: invoice.invoiceId,
+      currentUser: currentAccount,
+      payee: invoice.onchain.payee,
+      amount: invoice.amount,
+      reason: 'Escrow contract bug - direct transfer needed'
+    })
+
+    setProcessing(true)
+    try {
+      const amountBig = toTokenAmountUSD(invoice.amount)
+      const txHash = await directTransfer({
+        payeeAddress: invoice.onchain.payee as `0x${string}`,
+        amountBig
+      })
+
+      console.log('✅ Direct transfer successful:', txHash)
+
+      // Update Firestore to mark as paid
+      await InvoiceService.updateInvoiceStatus(invoice.invoiceId, 'paid', {
+        onchain: {
+          ...invoice.onchain,
+          state: 'paid',
+          directTransferTx: txHash
+        }
+      })
+
+      toast({
+        title: 'Direct Transfer Complete',
+        description: 'Funds have been transferred directly to the freelancer\'s wallet'
+      })
+
+      // Reload invoice data and on-chain status
+      await loadInvoice()
+      await loadOnchainStatus()
+    } catch (error: any) {
+      console.error('Error with direct transfer:', error)
+      toast({
+        title: 'Direct Transfer Failed',
+        description: error.message || 'Failed to transfer funds directly',
+        variant: 'destructive'
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const handleFaucet = async () => {
     if (!walletConnected) return
 
@@ -242,16 +371,36 @@ export default function PaymentView() {
   }
 
   const getStatusBadge = () => {
-    // Use on-chain status if available, otherwise fall back to database status
-    if (onchainStatus?.isComplete) {
+    console.log('🏷️ Determining status badge:', {
+      onchainStatus: onchainStatus ? {
+        state: onchainStatus.state,
+        stateName: onchainStatus.stateName,
+        isComplete: onchainStatus.isComplete
+      } : null,
+      invoiceStatus: invoice?.status,
+      databaseOnchainState: invoice?.onchain?.state
+    })
+    
+    // CRITICAL: Don't trust onchain isComplete - check database status first
+    // Only show complete if database confirms payment is actually paid
+    if (invoice?.status === 'paid') {
+      console.log('✅ Showing: Payment Complete (database confirms paid)')
       return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Payment Complete</Badge>
     }
     
+    // Show warning for auto-release bug case
+    if (onchainStatus?.state === 2 && invoice?.status !== 'paid') {
+      console.log('⚠️ Showing: Action Required (auto-release detected)')
+      return <Badge variant="destructive"><Clock className="w-3 h-3 mr-1" />Action Required</Badge>
+    }
+    
     if (onchainStatus?.state === 1) {
+      console.log('💰 Showing: Funded (onchain state === 1)')
       return <Badge variant="secondary"><Wallet className="w-3 h-3 mr-1" />Funded</Badge>
     }
     
     // Fall back to database status
+    console.log('📋 Using database status:', invoice?.status)
     switch (invoice?.status) {
       case 'sent':
         return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Awaiting Payment</Badge>
@@ -289,8 +438,23 @@ export default function PaymentView() {
 
   // Use on-chain status for button logic
   const canFund = onchainStatus?.canFund && walletConnected
-  const canRelease = onchainStatus?.canRelease && walletConnected
-  const isComplete = onchainStatus?.isComplete || invoice?.status === 'paid'
+  
+  // RELEASE LOGIC: Allow both payer and payee to release funds
+  const isUserPayee = currentAccount && invoice?.onchain?.payee && 
+    currentAccount.toLowerCase() === invoice.onchain.payee.toLowerCase()
+  
+  const isUserPayer = currentAccount && onchainStatus?.payer && 
+    currentAccount.toLowerCase() === onchainStatus.payer.toLowerCase()
+  
+  // Allow release if:
+  // 1. User is the payer (client who funded) OR payee (freelancer)
+  // 2. Invoice is funded (state 1) OR contract shows released but DB shows not paid (bug case)
+  const canRelease = walletConnected && (isUserPayer || isUserPayee) && (
+    onchainStatus?.state === 1 || // Normal case: state is Funded
+    (onchainStatus?.state === 2 && invoice?.status !== 'paid') // Bug case: contract shows Released but DB shows not paid
+  )
+  
+  const isComplete = invoice?.status === 'paid' // Only trust database status, not contract
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -333,6 +497,43 @@ export default function PaymentView() {
                   <div>
                     <p className="font-medium text-green-800">Wallet Connected</p>
                     <p className="text-sm text-green-600">{currentAccount}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Auto-Release Bug Warning */}
+            {console.log('🔍 Warning visibility check:', {
+              onchainState: onchainStatus?.state,
+              invoiceStatus: invoice?.status,
+              isUserPayee,
+              currentAccount,
+              payeeAddress: invoice?.onchain?.payee,
+              shouldShowWarning: onchainStatus?.state === 2 && invoice?.status !== 'paid' && isUserPayee
+            })}
+            {onchainStatus?.state === 2 && invoice?.status !== 'paid' && (isUserPayee || isUserPayer) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-lg font-semibold text-yellow-800 mb-2">Action Required: Manual Release Needed</h3>
+                    <p className="text-yellow-700 mb-3">
+                      The smart contract shows this payment as "Released" but the funds may not have been properly transferred to your wallet. 
+                      This can happen due to an auto-release timer or contract bug.
+                    </p>
+                    <p className="text-yellow-700 font-medium">
+                      {isUserPayer ? 
+                        'As the payer, please click "Release Payment" below to release the funds to the freelancer.' :
+                        'As the freelancer, please click "Claim Funds" below to ensure the funds are properly transferred to your wallet.'
+                      }
+                    </p>
+                    <p className="text-yellow-600 text-sm mt-2">
+                      The smart contract release function should be called by the payer (who funded the payment).
+                    </p>
                   </div>
                 </div>
               </div>
@@ -390,7 +591,7 @@ export default function PaymentView() {
                   <Button 
                     onClick={handleRelease} 
                     disabled={processing}
-                    variant="outline"
+                    variant={onchainStatus?.state === 2 ? "default" : "outline"}
                     className="flex-1"
                   >
                     {processing ? (
@@ -398,7 +599,8 @@ export default function PaymentView() {
                     ) : (
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
-                    Release Payment
+                    {isUserPayer ? 'Release Payment' : 
+                     (onchainStatus?.state === 2 ? 'Claim Funds' : 'Release Payment')}
                   </Button>
                 )}
               </div>

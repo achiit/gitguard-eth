@@ -14,6 +14,7 @@ import { usePrivyAuth } from "@/hooks/use-privy-auth";
 import { getContractsByUserId } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { WalletStatus } from "@/components/wallet/wallet-status";
 
 export default function Dashboard() {
 	const { user } = useAuth();
@@ -201,6 +202,11 @@ export default function Dashboard() {
 					</CardContent>
 				</Card>
 			)}
+
+			{/* Wallet Status */}
+			<div className="mb-6">
+				<WalletStatus role="payee" showDetails={true} />
+			</div>
 
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

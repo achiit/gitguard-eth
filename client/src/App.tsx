@@ -35,7 +35,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/c/:accessToken" component={ClientView} />
       <Route path="/pay/:payLinkToken" component={PaymentView} />
-      
+
       {/* Auth routes - redirect if already authenticated */}
       <Route path="/login">
         <AuthWrapper>
@@ -47,14 +47,14 @@ function Router() {
           <Web3Login />
         </AuthWrapper>
       </Route>
-      
+
       {/* Registration route - requires auth but not profile */}
       <Route path="/register">
         <AuthWrapper requireAuth={true}>
           <Register />
         </AuthWrapper>
       </Route>
-      
+
       {/* Protected routes - require auth and profile */}
       <Route path="/dashboard">
         <AuthWrapper requireAuth={true} requireProfile={true}>
@@ -101,10 +101,10 @@ function Router() {
           <Settings />
         </AuthWrapper>
       </Route>
-      
+
       {/* Debug/test routes */}
       <Route path="/privy-test" component={PrivyTest} />
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -115,7 +115,7 @@ function App() {
   // Debug the app ID
   const privyAppId = import.meta.env.VITE_PRIVY_APP_ID;
   console.log('Privy App ID:', privyAppId);
-  
+
   if (!privyAppId) {
     console.error('VITE_PRIVY_APP_ID is not defined in environment variables');
     return <div>Error: Privy App ID not configured</div>;
@@ -130,6 +130,10 @@ function App() {
           appearance: {
             theme: 'light',
             accentColor: '#6366f1',
+          },
+          embeddedWallets: {
+            createOnLogin: 'users-without-wallets', // Automatically create embedded wallet for users without wallets
+            requireUserPasswordOnCreate: false, // Don't require password for embedded wallet creation
           },
         }}
       >

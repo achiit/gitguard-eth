@@ -25,6 +25,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [hasProfile, setHasProfile] = useState(false);
   const { toast } = useToast();
 
+  // Separate effect to handle wallet changes
+  useEffect(() => {
+    const handleWalletChanges = async () => {
+      if (authenticated && privyUser && wallets.length > 0) {
+        console.log('Wallet changes detected, syncing to Firebase...');
+        
+        const embeddedWallets = wallets.filter(wallet => wallet.walletClientType === 'privy');
+        const externalWallets = wallets.filter(wallet => wallet.walletClientType !== 'privy');
+        
+        console.log('Wallet sync info:', {
+          totalWallets: wallets.length,
+          embeddedWallets: embeddedWallets.map(w => ({ type: w.walletClientType, address: w.address })),
+          externalWallets: externalWallets.map(w => ({ type: w.walletClientType, address: w.address }))
+        });
+
+        try {
+          // Update wallet addresses in Firebase
+          await PrivyFirebaseSync.updateUserWallets(privyUser.id, wallets);
+          
+          if (embeddedWallets.length > 0) {
+            console.log('✅ Embedded wallet synced to Firebase:', embeddedWallets[0].address);
+            toast({
+              title: "Wallet Connected",
+              description: "Your wallet has been connected and synced successfully.",
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing wallet changes:', error);
+        }
+      }
+    };
+
+    handleWalletChanges();
+  }, [wallets, authenticated, privyUser, toast]);
+
   useEffect(() => {
     const handleAuthState = async () => {
       console.log('Auth state change:', { ready, authenticated, userId: privyUser?.id });
@@ -48,9 +83,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         
         try {
-          // Sync user to Firebase first
+          // Sync user to Firebase first (this will include any existing wallets)
           console.log('Syncing user to Firebase...');
-          await PrivyFirebaseSync.syncUserToFirebase(privyUser, wallets);
+          const syncResult = await PrivyFirebaseSync.syncUserToFirebase(privyUser, wallets);
+          console.log('Firebase sync result:', syncResult ? 'Success' : 'Failed');
+          
+          const embeddedWallets = wallets.filter(wallet => wallet.walletClientType === 'privy');
+          if (embeddedWallets.length === 0) {
+            console.warn('⚠️ No embedded wallet found - user needs to create one for receiving payments');
+          }
           
           // Check if the user has completed their profile setup
           console.log('Checking user profile completion...');

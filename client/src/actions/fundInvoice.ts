@@ -54,16 +54,89 @@ export async function fundInvoice({
     console.log('Checking invoice state...')
     console.log('Calculated idHex:', idHex)
 
-    // IMPORTANT: Try to get the stored idHex from Firebase first
-    // The issue might be that we're calculating a different hash than what was stored
-    const invoiceData = await publicClient.readContract({
-      address: ESCROW,
-      abi: abiEscrow,
-      functionName: 'invoices',
-      args: [idHex]
-    })
+    let invoiceData
+    let needsOnchainCreation = false
 
-    console.log('Invoice data:', invoiceData)
+    try {
+      invoiceData = await publicClient.readContract({
+        address: ESCROW,
+        abi: abiEscrow,
+        functionName: 'invoices',
+        args: [idHex]
+      })
+
+      console.log('Invoice data:', invoiceData)
+
+      const [payer, payee] = invoiceData as readonly [
+        `0x${string}`, // payer
+        `0x${string}`, // payee
+        `0x${string}`, // token
+        bigint,        // total
+        bigint,        // funded
+        bigint,        // createdAt
+        bigint,        // fundedAt
+        bigint,        // autoReleaseAt
+        number,        // state
+        boolean,       // disputed
+        string         // metaURI
+      ]
+
+      // Check if invoice exists (payee should not be zero address for created invoices)
+      if (payee === '0x0000000000000000000000000000000000000000') {
+        console.log('📝 Invoice does not exist on-chain yet - needs to be created first')
+        needsOnchainCreation = true
+      }
+    } catch (error) {
+      console.log('📝 Error reading invoice - likely does not exist on-chain yet')
+      needsOnchainCreation = true
+    }
+
+    // Create invoice on-chain if it doesn't exist
+    if (needsOnchainCreation) {
+      console.log('🚀 Creating invoice on-chain before funding...')
+      
+      // Get invoice details from Firestore to create on-chain
+      const { InvoiceService } = await import('../services/invoiceService')
+      const firestoreInvoice = await InvoiceService.getInvoice(invoiceId)
+      
+      if (!firestoreInvoice) {
+        throw new Error('Invoice not found in database')
+      }
+
+      const { createOnchainInvoice } = await import('./createOnchainInvoice')
+      
+      try {
+        const { txHash } = await createOnchainInvoice({
+          invoiceId,
+          payee: firestoreInvoice.onchain.payee as `0x${string}`,
+          amountUsd: firestoreInvoice.amount,
+          autoReleaseAt: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days
+          metaURI: `Invoice ${invoiceId}`
+        })
+
+        console.log('✅ Invoice created on-chain:', txHash)
+
+        // Update Firestore with creation transaction
+        await InvoiceService.updateOnchainData(invoiceId, {
+          createTx: txHash,
+          state: 'created'
+        })
+
+        // Wait a moment for the transaction to be mined
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        // Now read the invoice data again
+        invoiceData = await publicClient.readContract({
+          address: ESCROW,
+          abi: abiEscrow,
+          functionName: 'invoices',
+          args: [idHex]
+        })
+      } catch (createError) {
+        console.error('❌ Failed to create invoice on-chain:', createError)
+        throw new Error(`Failed to create invoice on-chain: ${createError instanceof Error ? createError.message : 'Unknown error'}`)
+      }
+    }
 
     const [payer, payee, , total, , , , , state] = invoiceData as readonly [
       `0x${string}`, // payer
@@ -78,11 +151,6 @@ export async function fundInvoice({
       boolean,       // disputed
       string         // metaURI
     ]
-
-    // Check if invoice exists (payee should not be zero address for created invoices)
-    if (payee === '0x0000000000000000000000000000000000000000') {
-      throw new Error('Invoice does not exist on-chain')
-    }
 
     // Special handling for invoices with zero payer address
     const isPayerZero = payer === '0x0000000000000000000000000000000000000000'

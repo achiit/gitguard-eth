@@ -29,6 +29,15 @@ export class Web3EscrowService {
         // Auto-release after 30 days
         const autoReleaseAt = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60)
 
+        // Get payee wallet address from contract
+        const payeeWallet = contract.paymentTerms?.payeeWallet || 
+                           contract.freelancerWalletAddress || 
+                           '0x0000000000000000000000000000000000000000';
+
+        if (payeeWallet === '0x0000000000000000000000000000000000000000') {
+            throw new Error('Freelancer wallet address is required to create invoice');
+        }
+
         // Create invoice in Firestore first to get the actual invoice ID
         const tempInvoice: Omit<FirebaseInvoice, 'invoiceId' | 'createdAt' | 'updatedAt' | 'audit'> = {
             contractId: contract.contractId,
@@ -45,7 +54,8 @@ export class Web3EscrowService {
                 token: WPYUSD,
                 amount: (contract.paymentTerms.amount * 1_000_000).toString(), // Convert to 6 decimals
                 state: 'created',
-                payee: contract.paymentTerms.payeeWallet || '0x0000000000000000000000000000000000000000'
+                payee: payeeWallet,
+                payer: contract.clientWalletAddress || '0x0000000000000000000000000000000000000000'
             }
         }
 
@@ -59,26 +69,14 @@ export class Web3EscrowService {
             idHex: correctIdHex
         })
 
-        // Create invoice on-chain
-        try {
-            const { txHash } = await createOnchainInvoice({
-                invoiceId: createdInvoiceId,
-                payee: tempInvoice.onchain.payee as `0x${string}`,
-                amountUsd: tempInvoice.amount,
-                autoReleaseAt,
-                metaURI: `Invoice for contract ${contract.contractId}`
-            })
-
-            // Update invoice with transaction hash
-            await InvoiceService.updateOnchainData(createdInvoiceId, {
-                state: 'created'
-            })
-
-            console.log('Invoice created on-chain:', txHash)
-        } catch (error) {
-            console.error('Failed to create invoice on-chain:', error)
-            // Continue with Firestore-only invoice for now
-        }
+        // Don't create invoice on-chain yet - wait until funding
+        // This prevents the issue where client creating the invoice marks it as funded
+        console.log('📝 Invoice created in Firestore only - will create on-chain during funding:', {
+            invoiceId: createdInvoiceId,
+            payee: payeeWallet,
+            idHex: correctIdHex,
+            note: 'On-chain creation deferred to funding step'
+        })
 
         return createdInvoiceId
     }

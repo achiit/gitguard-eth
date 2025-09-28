@@ -17,14 +17,21 @@ import { useAuth } from "@/contexts/auth-context";
 import { formatDate } from "@/lib/utils";
 import { getContractsByUserId } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { Web3EscrowService } from "@/lib/web3-escrow";
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { validateWalletSetup } from "@/lib/wallet-utils";
+import { Receipt } from "lucide-react";
 
 export default function Contracts() {
   const { user } = useAuth();
+  const { user: privyUser } = usePrivy();
+  const { wallets } = useWallets();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [creatingInvoice, setCreatingInvoice] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Fetch contracts from Firestore
@@ -98,6 +105,70 @@ export default function Contracts() {
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Expired</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{status}</Badge>;
+    }
+  };
+
+  // Manual invoice creation for signed contracts
+  const createInvoiceForContract = async (contract: Contract) => {
+    if (!privyUser || !wallets) {
+      toast({
+        title: "Authentication required",
+        description: "Please ensure you're logged in with Privy",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setCreatingInvoice(contract.contractId);
+    
+    try {
+      // Validate wallet setup
+      const walletValidation = validateWalletSetup(wallets, 'payee');
+      
+      if (!walletValidation.isValid) {
+        throw new Error(walletValidation.error);
+      }
+
+      const freelancerWallet = walletValidation.address!;
+      
+      // Add Web3 payment configuration to contract
+      const web3Config = Web3EscrowService.getPaymentConfig(
+        contract.paymentTerms.currency, 
+        freelancerWallet
+      );
+      
+      // Update contract with Web3 payment terms
+      const updatedContract = {
+        ...contract,
+        paymentTerms: {
+          ...contract.paymentTerms,
+          tokenAddress: web3Config.tokenAddress,
+          decimals: web3Config.decimals,
+          chainId: web3Config.chainId,
+          payeeWallet: freelancerWallet
+        }
+      };
+      
+      // Create invoice
+      const invoiceId = await Web3EscrowService.createInvoiceFromContract(updatedContract);
+      
+      toast({
+        title: "Invoice Created",
+        description: `Invoice ${invoiceId} created successfully for this contract`,
+      });
+      
+      // Navigate to invoices page
+      navigate("/invoices");
+      
+    } catch (error) {
+      console.error('Failed to create invoice:', error);
+      toast({
+        title: "Failed to create invoice",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setCreatingInvoice(null);
     }
   };
 
@@ -248,10 +319,24 @@ export default function Contracts() {
                 )}
                 
                 {contract.status === ContractStatus.SIGNED && (
-                  <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
-                    <Download className="h-4 w-4 mr-1" />
-                    <span className="sr-only sm:not-sr-only sm:text-xs">Download</span>
-                  </Button>
+                  <>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-blue-600 hover:text-blue-900"
+                      onClick={() => createInvoiceForContract(contract)}
+                      disabled={creatingInvoice === contract.contractId}
+                    >
+                      <Receipt className="h-4 w-4 mr-1" />
+                      <span className="sr-only sm:not-sr-only sm:text-xs">
+                        {creatingInvoice === contract.contractId ? 'Creating...' : 'Invoice'}
+                      </span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                      <Download className="h-4 w-4 mr-1" />
+                      <span className="sr-only sm:not-sr-only sm:text-xs">Download</span>
+                    </Button>
+                  </>
                 )}
                 
                 <Button 

@@ -28,6 +28,7 @@ import { Contract, ContractStatus, User } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
 import { formatDate } from "@/lib/utils";
 import { getContractById, updateContract, getUserProfile } from "@/lib/firestore";
+import { WalletStatus } from "@/components/wallet/wallet-status";
 
 export default function ContractView() {
   const { contractId } = useParams();
@@ -262,13 +263,44 @@ export default function ContractView() {
             <div className="mt-6 space-y-3">
               {contract.status === ContractStatus.DRAFT && (
                 <>
-                  <Button 
-                    className="w-full"
-                    onClick={() => setSendDialogOpen(true)}
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    Send to Client
-                  </Button>
+                  {/* Wallet Status Check */}
+                  <div className="mb-4">
+                    <WalletStatus role="payee" />
+                  </div>
+                  
+                  {!contract.signatures?.freelancer && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-center">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 mr-2" />
+                        <p className="text-sm text-yellow-800">
+                          You must sign the contract first before sending it to the client. This ensures your wallet address is recorded for payments.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!contract.signatures?.freelancer ? (
+                    <Button 
+                      className="w-full"
+                      onClick={() => {
+                        // Navigate to a signing page or open a signing modal
+                        // For now, let's navigate to edit where they can sign
+                        navigate(`/contracts/edit/${contract.contractId}`)
+                      }}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Sign Contract
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full"
+                      onClick={() => setSendDialogOpen(true)}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send to Client
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="outline" 
                     className="w-full"

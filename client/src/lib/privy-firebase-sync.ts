@@ -222,16 +222,24 @@ export class PrivyFirebaseSync {
       const userRef = doc(db, 'users', userId);
       const walletAddresses = this.extractWalletAddresses({ id: userId } as User, wallets);
       
+      // Get existing user data to preserve other linkedAccounts
+      const existingDoc = await getDoc(userRef);
+      const existingData = existingDoc.exists() ? existingDoc.data() : {};
+      const existingLinkedAccounts = existingData.linkedAccounts || {};
+      
       await updateDoc(userRef, {
         ...walletAddresses,
-        linkedAccounts: {
-          wallet: wallets.length > 0,
-          embeddedWallet: !!wallets.find(w => w.walletClientType === 'privy'),
-        },
+        'linkedAccounts.wallet': wallets.length > 0,
+        'linkedAccounts.embeddedWallet': !!wallets.find(w => w.walletClientType === 'privy'),
         updatedAt: serverTimestamp(),
       });
       
-      console.log('✅ Updated user wallet addresses:', userId);
+      console.log('✅ Updated user wallet addresses:', {
+        userId,
+        walletAddresses,
+        hasEmbedded: !!wallets.find(w => w.walletClientType === 'privy'),
+        hasExternal: !!wallets.find(w => w.walletClientType !== 'privy')
+      });
     } catch (error) {
       console.error('❌ Error updating user wallets:', error);
     }

@@ -4,6 +4,7 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
   query, 
   where, 
   getDocs,
@@ -132,5 +133,10 @@ export class InvoiceService {
       onchain: updatedOnchain,
       updatedAt: new Date().toISOString()
     })
+  }
+
+  static async deleteInvoice(invoiceId: string): Promise<void> {
+    const docRef = doc(firestore, this.collection, invoiceId)
+    await deleteDoc(docRef)
   }
 }
